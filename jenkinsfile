@@ -1,0 +1,45 @@
+pipeline {
+    agent any
+    stages {
+        stage("Build") {
+            steps {
+                echo "Building..."
+                sh '''
+                    mvn spring-javaformat:apply
+                    mvn clean package
+                '''
+            }
+        }
+        stage("Test") {
+            steps {
+                echo "Testing..."
+                sh '''
+                    mvn test
+                '''
+            }
+        }
+        // stage('Deploy') {
+        //     steps {
+        //         sshagent(['connect_jenkins_to_vm']) { 
+        //             script {
+        //                 echo "Running Ansible Playbook..."
+        //                 sh '''
+        //                     echo "$VAULT_PASS" > /tmp/vault_pass
+        //                     ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i hosts.ini playbook.yml --vault-password-file /tmp/vault_pass
+        //                     rm -f /tmp/vault_pass
+        //                 '''
+        //             }
+        //         }
+        //     }
+        // }
+    }
+    post {
+        success {
+            jacoco(
+                execPattern: '**/target/jacoco.exec',
+                classPattern: '**/target/classes',
+                sourcePattern: '**/src/main/java'
+            )
+        }
+    }
+}

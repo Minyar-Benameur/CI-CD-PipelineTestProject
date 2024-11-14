@@ -1,0 +1,55 @@
+---
+- name: Deploy Spring Boot Project on VM
+  hosts: web_servers
+  become: true
+  vars:
+    jar_path: ./target/spring-petclinic-3.3.0-SNAPSHOT.jar
+    dest_dir: /opt/springboot_app
+    app_port: '8081'
+  tasks:
+    # Ensure Java is installed
+    - name: Ensure Java JDK 17 is installed
+      apt: 
+        name: openjdk-17-jdk 
+        update-cache: yes 
+        state: present
+
+    # Prepare the destination directory for the application
+    - name: Ensure destination directory exists
+      file:
+        path: "{{ dest_dir }}"
+        state: directory
+        mode: '0755'
+      tags: prepare
+
+    # Upload the Spring Boot JAR file to the VM
+    - name: Upload Spring Boot application JAR
+      copy:
+        src: "{{ jar_path }}"
+        dest: "{{ dest_dir }}/app.jar"
+        mode: '0755'
+      tags: upload
+      when: jar_path is defined
+
+    # Configure systemd service for the application
+    - name: Create systemd service for Spring Boot application
+      template:
+        src: springboot.service.j2
+        dest: /etc/systemd/system/springboot.service
+        mode: '0644'
+      tags: service
+
+    # Enable and start the Spring Boot service
+    - name: Enable and start Spring Boot service
+      systemd:
+        name: springboot
+        state: started
+        enabled: true
+      tags: manage_service
+
+    # Configure firewall to allow HTTP traffic
+    - name: Allow application port in UFW
+      ufw:
+        rule: allow
+        port: "{{app_port}}"
+        proto: tcp
